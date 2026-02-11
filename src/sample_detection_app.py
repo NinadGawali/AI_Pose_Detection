@@ -9,6 +9,7 @@ import mediapipe as mp
 import numpy as np
 
 from posture_check.savdhan_check import check_savdhan
+from posture_check.vishram_check import check_vishram
 
 
 if __name__ == "__main__":
@@ -55,45 +56,63 @@ if __name__ == "__main__":
                         mp_pose.POSE_CONNECTIONS
                     )
 
-                    if st.button("Check Savdhan Accuracy"):
+                    col1, col2 = st.columns(2)
 
-                        image2, acc, details, suggestions, values = check_savdhan(
-                            image.copy(),
-                            results.pose_landmarks
-                        )
+                    with col1:
+                        if st.button("Check Savdhan (Attention)"):
 
-                        st.image(
-                            cv2.cvtColor(image2, cv2.COLOR_BGR2RGB),
-                            caption="Savdhan analysis",
-                            use_container_width=True
-                        )
+                            img2, acc, details, suggestions, values = check_savdhan(
+                                image.copy(),
+                                results.pose_landmarks
+                            )
 
-                        st.subheader("Savdhan score")
-                        st.write("Accuracy :", round(acc, 2), "%")
+                            st.image(cv2.cvtColor(img2, cv2.COLOR_BGR2RGB),
+                                     use_container_width=True)
 
-                        st.subheader("Rule wise result")
-                        for k in details:
-                            st.write(k, ":", "✅" if details[k] else "❌")
+                            st.subheader("Savdhan score")
+                            st.write("Accuracy :", round(acc, 2), "%")
 
-                        st.subheader("Suggestions")
-                        if len(suggestions) == 0:
-                            st.write("Perfect Savdhan posture.")
-                        else:
-                            for s in suggestions:
-                                st.write("•", s)
+                            st.subheader("Rule wise")
+                            for k in details:
+                                st.write(k, ":", "✅" if details[k] else "❌")
 
-                        st.subheader("Measured angles")
-                        st.write("Left elbow :", round(values["left_elbow"], 2))
-                        st.write("Right elbow :", round(values["right_elbow"], 2))
-                        st.write("Left knee :", round(values["left_knee"], 2))
-                        st.write("Right knee :", round(values["right_knee"], 2))
-                        st.write("Feet distance (norm) :", round(values["ankle_norm"], 3))
+                            st.subheader("Suggestions")
+                            if len(suggestions) == 0:
+                                st.write("Perfect Savdhan posture.")
+                            else:
+                                for s in suggestions:
+                                    st.write("•", s)
+
+                    with col2:
+                        if st.button("Check Vishram (Stand at ease)"):
+
+                            img3, acc2, details2, suggestions2, values2 = check_vishram(
+                                image.copy(),
+                                results.pose_landmarks
+                            )
+
+                            st.image(cv2.cvtColor(img3, cv2.COLOR_BGR2RGB),
+                                     use_container_width=True)
+
+                            st.subheader("Vishram score")
+                            st.write("Accuracy :", round(acc2, 2), "%")
+
+                            st.subheader("Rule wise")
+                            for k in details2:
+                                st.write(k, ":", "✅" if details2[k] else "❌")
+
+                            st.subheader("Suggestions")
+                            if len(suggestions2) == 0:
+                                st.write("Correct Vishram posture.")
+                            else:
+                                for s in suggestions2:
+                                    st.write("•", s)
 
                 else:
                     st.warning("No body detected")
 
             original_name = uploaded_file.name
-            save_name = "pose_analysis_" + original_name
+            save_name = "pose_detection_" + original_name
             save_path = os.path.join("sample_images", save_name)
 
             cv2.imwrite(save_path, image)
