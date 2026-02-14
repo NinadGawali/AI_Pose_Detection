@@ -1,126 +1,291 @@
 import sys
 import os
+import cv2
+import numpy as np
+import streamlit as st
+import mediapipe as mp
+import time
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import streamlit as st
-import cv2
-import mediapipe as mp
-import numpy as np
-
 from posture_check.savdhan_check import check_savdhan
 from posture_check.vishram_check import check_vishram
+from posture_check.salute_check import check_salute
 
 
-if __name__ == "__main__":
+# ==========================================================
+# PAGE CONFIG
+# ==========================================================
 
-    st.set_page_config(page_title="Pose Detection", layout="centered")
+st.set_page_config(
+    page_title="Army Drill Evaluation System",
+    layout="wide",
+)
 
-    st.title("Simple Pose Detection App")
+# ==========================================================
+# GLOBAL STYLES (TACTICAL THEME)
+# ==========================================================
 
-    uploaded_file = st.file_uploader(
-        "Upload an image",
-        type=["jpg", "jpeg", "png"]
-    )
+st.markdown("""
+<style>
 
-    os.makedirs("sample_images", exist_ok=True)
+body {
+    background-color: #0f172a;
+    color: white;
+}
 
-    if uploaded_file is not None:
+.hero {
+    position: relative;
+    height: 80vh;
+    background-image: url("https://images.unsplash.com/photo-1599058917212-d750089bc07e");
+    background-size: cover;
+    background-position: center;
+    border-radius: 15px;
+}
 
-        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+.hero-overlay {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 80px;
+    height: 100%;
+    border-radius: 15px;
+}
 
-        if image is None:
-            st.error("Could not read image")
+.hero-title {
+    font-size: 60px;
+    font-weight: 700;
+    color: white;
+}
 
-        else:
+.hero-sub {
+    font-size: 20px;
+    color: #d1d5db;
+}
 
-            mp_pose = mp.solutions.pose
-            mp_drawing = mp.solutions.drawing_utils
+.navbar {
+    font-size: 18px;
+    font-weight: 600;
+}
 
-            with mp_pose.Pose(
-                static_image_mode=True,
-                model_complexity=2,
-                enable_segmentation=False,
-                min_detection_confidence=0.5
-            ) as pose:
+.accuracy-box {
+    padding: 25px;
+    border-radius: 15px;
+    text-align: center;
+    font-size: 30px;
+    font-weight: 700;
+    color: white;
+}
 
-                rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+.section {
+    padding: 50px 0px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# ==========================================================
+# SESSION STATE PAGE CONTROL
+# ==========================================================
+
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+
+# ==========================================================
+# NAVBAR
+# ==========================================================
+
+col1, col2, col3, col4 = st.columns([2,1,1,1])
+
+with col1:
+    st.markdown("## 🇮🇳 Drill Evaluation System")
+
+with col2:
+    if st.button("Home"):
+        st.session_state.page = "home"
+
+with col3:
+    if st.button("Evaluation"):
+        st.session_state.page = "evaluation"
+
+with col4:
+    if st.button("About"):
+        st.session_state.page = "about"
+
+st.markdown("---")
+
+
+# ==========================================================
+# HOME PAGE
+# ==========================================================
+
+if st.session_state.page == "home":
+
+    st.markdown("""
+    <div class="hero">
+        <div class="hero-overlay">
+            <div class="hero-title">
+                Real-Time Army Drill Validation
+            </div>
+            <div class="hero-sub">
+                AI-Powered Pose Analysis for Savdhan, Vishram & Salute Positions
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("")
+
+    center_col = st.columns([3,2,3])[1]
+
+    with center_col:
+        if st.button("🚀 START EVALUATION"):
+            st.session_state.page = "evaluation"
+            st.rerun()
+
+
+# ==========================================================
+# ABOUT PAGE
+# ==========================================================
+
+elif st.session_state.page == "about":
+
+    st.markdown("## About the System")
+
+    st.markdown("""
+    This platform is designed to evaluate Indian Army drill postures using 
+    real-time computer vision and biomechanical analysis.
+
+    ### Core Technologies
+    - MediaPipe Pose Detection
+    - OpenCV Real-Time Processing
+    - Proportional Body-Based Rule Engine
+    - AI-Assisted Posture Accuracy Metrics
+
+    ### Objective
+    To assist in:
+    - Drill training evaluation
+    - Posture correctness monitoring
+    - Real-time feedback generation
+    - Standardized discipline validation
+
+    ### Designed For
+    - Military drill instructors
+    - Training academies
+    - Defense research projects
+    """)
+
+
+# ==========================================================
+# EVALUATION PAGE
+# ==========================================================
+
+elif st.session_state.page == "evaluation":
+
+    st.markdown("## 🎯 Drill Evaluation Mode")
+
+    colA, colB = st.columns([1,2])
+
+    with colA:
+        pose_option = st.selectbox(
+            "Select Position",
+            ["Savdhan (Attention)", "Vishram (Stand at Ease)", "Salute"]
+        )
+
+        start = st.button("▶ Start Camera")
+        stop = st.button("⏹ Stop Camera")
+
+    frame_placeholder = colB.empty()
+    info_placeholder = st.empty()
+
+    if start:
+
+        cap = cv2.VideoCapture(0)
+
+        for i in range(5,0,-1):
+            frame_placeholder.markdown(f"### ⏳ Get Ready... {i}")
+            time.sleep(1)
+
+        mp_pose = mp.solutions.pose
+        mp_drawing = mp.solutions.drawing_utils
+
+        with mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=1,
+            min_detection_confidence=0.6,
+            min_tracking_confidence=0.6
+        ) as pose:
+
+            running = True
+
+            while running:
+
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                frame = cv2.flip(frame, 1)
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 results = pose.process(rgb)
+
+                accuracy = 0
+                details = {}
+                suggestions = []
 
                 if results.pose_landmarks:
 
                     mp_drawing.draw_landmarks(
-                        image,
+                        frame,
                         results.pose_landmarks,
                         mp_pose.POSE_CONNECTIONS
+                    )
+
+                    if pose_option == "Savdhan (Attention)":
+                        frame, accuracy, details, suggestions, _ = check_savdhan(frame, results.pose_landmarks)
+
+                    elif pose_option == "Vishram (Stand at Ease)":
+                        frame, accuracy, details, suggestions, _ = check_vishram(frame, results.pose_landmarks)
+
+                    elif pose_option == "Salute":
+                        frame, accuracy, details, suggestions, _ = check_salute(frame, results.pose_landmarks)
+
+                frame_placeholder.image(
+                    cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                    use_container_width=True
+                )
+
+                # Accuracy Color
+                if accuracy >= 85:
+                    color = "#22c55e"
+                elif accuracy >= 60:
+                    color = "#f59e0b"
+                else:
+                    color = "#ef4444"
+
+                with info_placeholder.container():
+
+                    st.markdown(
+                        f"<div class='accuracy-box' style='background-color:{color};'>Accuracy: {round(accuracy,2)}%</div>",
+                        unsafe_allow_html=True
                     )
 
                     col1, col2 = st.columns(2)
 
                     with col1:
-                        if st.button("Check Savdhan (Attention)"):
-
-                            img2, acc, details, suggestions, values = check_savdhan(
-                                image.copy(),
-                                results.pose_landmarks
-                            )
-
-                            st.image(cv2.cvtColor(img2, cv2.COLOR_BGR2RGB),
-                                     use_container_width=True)
-
-                            st.subheader("Savdhan score")
-                            st.write("Accuracy :", round(acc, 2), "%")
-
-                            st.subheader("Rule wise")
-                            for k in details:
-                                st.write(k, ":", "✅" if details[k] else "❌")
-
-                            st.subheader("Suggestions")
-                            if len(suggestions) == 0:
-                                st.write("Perfect Savdhan posture.")
-                            else:
-                                for s in suggestions:
-                                    st.write("•", s)
+                        st.markdown("### Rule Status")
+                        for k in details:
+                            status = "✅" if details[k] else "❌"
+                            st.write(f"{status} {k}")
 
                     with col2:
-                        if st.button("Check Vishram (Stand at ease)"):
+                        st.markdown("### Suggestions")
+                        if suggestions:
+                            for s in suggestions:
+                                st.write(f"• {s}")
+                        else:
+                            st.success("Perfect Posture!")
 
-                            img3, acc2, details2, suggestions2, values2 = check_vishram(
-                                image.copy(),
-                                results.pose_landmarks
-                            )
+                if stop:
+                    running = False
 
-                            st.image(cv2.cvtColor(img3, cv2.COLOR_BGR2RGB),
-                                     use_container_width=True)
-
-                            st.subheader("Vishram score")
-                            st.write("Accuracy :", round(acc2, 2), "%")
-
-                            st.subheader("Rule wise")
-                            for k in details2:
-                                st.write(k, ":", "✅" if details2[k] else "❌")
-
-                            st.subheader("Suggestions")
-                            if len(suggestions2) == 0:
-                                st.write("Correct Vishram posture.")
-                            else:
-                                for s in suggestions2:
-                                    st.write("•", s)
-
-                else:
-                    st.warning("No body detected")
-
-            original_name = uploaded_file.name
-            save_name = "pose_detection_" + original_name
-            save_path = os.path.join("sample_images", save_name)
-
-            cv2.imwrite(save_path, image)
-
-            st.success("Saved as : " + save_path)
-
-            st.image(
-                cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
-                caption=save_name,
-                use_container_width=True
-            )
+        cap.release()
+        cv2.destroyAllWindows()
