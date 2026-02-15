@@ -27,16 +27,13 @@ This script will launch a Streamlit web application where you can upload an imag
 
 4. The output image with detected landmarks will be saved in the `sample_images` folder with the name `pose_detection_<original_name>`.
 
-### 2. Run src/sample_detection_app.py
-This script has the functionality to detect poses in images and check accuracy of postures like
-- Savdhan / Attention
-- Vishram / Stand at Ease 
-This is uses the `posture_check/savdhan_check.py` and `posture_check/vishram_check.py` modules to analyze the detected landmarks and provide feedback on the accuracy of the posture.
-Current thresholds for checking the Savdhan posture are set in the `savdhan_check.py` and `vishram_check.py` files, which can be adjusted based the requirements.
+
+### 2. Update in sample_detection_app2.py
+The script now includes functionality to check accuracy of the chosen pose for practise with live feedback.It makes use of the inbuilt webcam to capture live video feed and analyze the poses in real-time. The user can select the posture they want to check (Savdhan or Vishram or Salute etc) and the script will provide feedback on the accuracy of the posture based on the detected landmarks. Posture checking logic is implemented in the code files in the `posture_check` folder.
 1. Run the sample detection app:
    ```bash
-   python src/sample_detection_app.py
+   streamlit run src/sample_detection_app2.py
    ```
-2. Select the image you want to analyse
-3. Select the posture you want to check (Savdhan or Vishram)
-4. The output image with detected landmarks and posture analysis will be saved in the `sample_images` folder with the name `pose_analysis_<original_name>`.
+2. Select the posture you want to check 
+3. The app will use the webcam to capture live video feed and analyze the poses in real-time, providing feedback on the accuracy of the posture.
+

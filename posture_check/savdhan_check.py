@@ -16,12 +16,15 @@ def angle(a, b, c):
 
     return np.degrees(np.arccos(cosang))
 
-
 def check_savdhan(image, pose_landmarks):
 
-    ANGLE_TOL = 10
-    ELBOW_TARGET = 180
-    KNEE_TARGET = 180
+    # ----------- TOLERANCES -----------
+    ANGLE_TOL = 15                # General angle tolerance
+    STRAIGHT_MIN = 165            # Acceptable straight joint lower bound
+    FEET_TOL = 0.18               # Feet horizontal distance tolerance
+    LEVEL_TOL = 0.04              # Vertical level tolerance
+    CENTER_TOL = 0.04             # Mid alignment tolerance
+    ARM_BODY_TOL = 0.20           # Relaxed arm-body closeness
 
     mp_pose = mp.solutions.pose
     lm = pose_landmarks.landmark
@@ -29,6 +32,7 @@ def check_savdhan(image, pose_landmarks):
     def P(i):
         return np.array([lm[i].x, lm[i].y])
 
+    # ----------- LANDMARKS -----------
     LS = P(mp_pose.PoseLandmark.LEFT_SHOULDER)
     RS = P(mp_pose.PoseLandmark.RIGHT_SHOULDER)
 
@@ -47,67 +51,98 @@ def check_savdhan(image, pose_landmarks):
     LK = P(mp_pose.PoseLandmark.LEFT_KNEE)
     RK = P(mp_pose.PoseLandmark.RIGHT_KNEE)
 
+    NOSE = P(mp_pose.PoseLandmark.NOSE)
+
     shoulder_width = abs(LS[0] - RS[0])
 
-    ankle_dist_norm = abs(LA[0] - RA[0]) / shoulder_width
-
+    # ----------- ANGLES -----------
     left_elbow_ang = angle(LS, LE, LW)
     right_elbow_ang = angle(RS, RE, RW)
 
     left_knee_ang = angle(LH, LK, LA)
     right_knee_ang = angle(RH, RK, RA)
 
-    left_wrist_hip_x = abs(LW[0] - LH[0]) / shoulder_width
-    right_wrist_hip_x = abs(RW[0] - RH[0]) / shoulder_width
+    # Spine vertical check
+    mid_shoulder = (LS + RS) / 2
+    mid_hip = (LH + RH) / 2
+    vertical_ref = mid_shoulder + np.array([0, 1])
+    spine_angle = angle(vertical_ref, mid_shoulder, mid_hip)
+
+    # ----------- DISTANCES -----------
+    ankle_dist_norm = abs(LA[0] - RA[0]) / shoulder_width
+    ankle_level = abs(LA[1] - RA[1])
 
     shoulder_level = abs(LS[1] - RS[1])
 
-    mid_shoulder_x = (LS[0] + RS[0]) / 2
-    mid_hip_x = (LH[0] + RH[0]) / 2
+    mid_shoulder_x = mid_shoulder[0]
+    mid_hip_x = mid_hip[0]
     torso_shift = abs(mid_shoulder_x - mid_hip_x)
 
+    # Relaxed arm rule
+    left_arm_close = abs(LW[0] - LH[0]) / shoulder_width < ARM_BODY_TOL
+    right_arm_close = abs(RW[0] - RH[0]) / shoulder_width < ARM_BODY_TOL
+
+    # Head alignment
+    head_centered = abs(NOSE[0] - mid_shoulder_x) < CENTER_TOL
+
+    # ----------- RULES -----------
     score = 0
-    total = 6
     details = {}
 
-    details["Feet together"] = ankle_dist_norm < 0.15
+    details["Feet together"] = (
+        ankle_dist_norm < FEET_TOL and
+        ankle_level < LEVEL_TOL
+    )
 
-    elbow_ok = (abs(left_elbow_ang - ELBOW_TARGET) <= ANGLE_TOL and
-                abs(right_elbow_ang - ELBOW_TARGET) <= ANGLE_TOL)
+    details["Elbows straight"] = (
+        left_elbow_ang >= STRAIGHT_MIN and
+        right_elbow_ang >= STRAIGHT_MIN
+    )
 
-    knee_ok = (abs(left_knee_ang - KNEE_TARGET) <= ANGLE_TOL and
-               abs(right_knee_ang - KNEE_TARGET) <= ANGLE_TOL)
+    details["Knees straight"] = (
+        left_knee_ang >= STRAIGHT_MIN and
+        right_knee_ang >= STRAIGHT_MIN
+    )
 
-    details["Elbows straight"] = elbow_ok
-    details["Knees straight"] = knee_ok
-    details["Wrists beside thighs"] = left_wrist_hip_x < 0.15 and right_wrist_hip_x < 0.15
-    details["Shoulders level"] = shoulder_level < 0.03
-    details["Torso centered"] = torso_shift < 0.03
+    details["Arms close to body"] = left_arm_close and right_arm_close
+
+    details["Shoulders level"] = shoulder_level < LEVEL_TOL
+
+    details["Torso vertical"] = spine_angle < ANGLE_TOL
+
+    details["Head centered"] = head_centered
+
+    total = len(details)
 
     for k in details:
         if details[k]:
             score += 1
 
+    # ----------- SUGGESTIONS -----------
     suggestions = []
 
     if not details["Feet together"]:
-        suggestions.append("Bring your heels closer together.")
+        suggestions.append("Bring your heels together and balance weight equally.")
 
     if not details["Elbows straight"]:
-        suggestions.append("Straighten your arms and keep them close to your body.")
+        suggestions.append("Straighten your arms fully.")
 
     if not details["Knees straight"]:
-        suggestions.append("Straighten your knees and stand tall.")
+        suggestions.append("Lock your knees and stand tall.")
 
-    if not details["Wrists beside thighs"]:
-        suggestions.append("Keep your hands straight beside your thighs.")
+    if not details["Arms close to body"]:
+        suggestions.append("Keep your arms naturally close to your thighs.")
 
     if not details["Shoulders level"]:
         suggestions.append("Level your shoulders and avoid tilting.")
 
-    if not details["Torso centered"]:
-        suggestions.append("Avoid leaning sideways. Keep your body centered.")
+    if not details["Torso vertical"]:
+        suggestions.append("Keep your back straight and avoid leaning.")
 
+    if not details["Head centered"]:
+        suggestions.append("Keep your head straight and look forward.")
+
+    # ----------- DEBUG TEXT -----------
     h, w, _ = image.shape
 
     def draw_text(pt, text):
@@ -126,5 +161,9 @@ def check_savdhan(image, pose_landmarks):
         "left_elbow": left_elbow_ang,
         "right_elbow": right_elbow_ang,
         "left_knee": left_knee_ang,
-        "right_knee": right_knee_ang
+        "right_knee": right_knee_ang,
+        "spine_angle": spine_angle
     }
+
+
+
