@@ -1,0 +1,236 @@
+# How to Run the Army Drill Evaluation System (Updated)
+
+## Quick Start
+
+### 1. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Run the Main Application
+```bash
+cd src
+streamlit run main_app.py
+```
+
+### 3. Login with Demo Accounts
+
+**Student Accounts:**
+- Username: `student1` | Password: `pass123`
+- Username: `student2` | Password: `pass123`
+
+**Teacher Account:**
+- Username: `teacher1` | Password: `admin123`
+
+---
+
+## 🆕 Latest Updates
+
+### Enhanced Practice Experience
+✅ **Extended Recording Time**: Now 5 seconds (increased from 4) for more accurate measurements
+✅ **Longer Countdown**: 5-second countdown (up from 3) to get into position properly
+✅ **Improved Layout**: Video feed on LEFT, analytics on RIGHT for better viewing
+✅ **Dark/Light Mode**: UI now works beautifully in both themes
+✅ **Better Fonts**: Larger, more readable text with better spacing
+
+### Detailed Feedback
+✅ **What Went Right**: See which rules you passed consistently
+✅ **What Needs Improvement**: Clear indication of failed rules
+✅ **Key Suggestions**: Actionable tips for your next practice
+✅ **Excel Tracking**: All practice data including rules passed/failed saved to Excel
+
+---
+
+## Features Overview
+
+### Student Features
+✅ **Practice Mode**
+- Select from 6 different drill poses
+- **5-second countdown** before recording starts (NEW!)
+- Live pose detection with accuracy feedback
+- **5-second recording** for accurate measurement (NEW!)
+- Real-time rule status with color coding
+- **Side-by-side layout**: Video LEFT, Analytics RIGHT (NEW!)
+- Detailed results showing what went right and wrong (NEW!)
+- Results automatically saved to Excel with rule details (NEW!)
+
+✅ **Statistics Dashboard**
+- View personal practice history
+- See total sessions, average accuracy, best and worst scores
+- Track recent practice sessions with dates and times
+
+### Teacher Features
+✅ **Overview Dashboard**
+- See total students, sessions, and average accuracy
+- View top performer
+- Recent activity feed with better styling (NEW!)
+- Performance charts
+
+✅ **All Students View**
+- Comprehensive table of all students' performance
+- Sort by accuracy, sessions, etc.
+- Visual charts showing distribution and trends
+
+✅ **Individual Student Analysis**
+- Detailed stats for any selected student
+- Progress tracking over time
+- Recent session history with accuracy trends
+
+✅ **Pose Analytics**
+- Performance breakdown by pose type
+- Identify most challenging poses
+- Session distribution across poses
+
+---
+
+## File Structure
+
+```
+src/
+├── main_app.py           # Main entry point with login (UPDATED)
+├── student_app.py        # Student dashboard (MAJOR UPDATE)
+├── teacher_app.py        # Teacher dashboard (UPDATED)
+├── auth_utils.py         # Authentication utilities
+├── data_manager.py       # Excel data management (UPDATED)
+├── sample_detection_app.py    # Old app (preserved)
+└── sample_detection_app2.py   # Old app (preserved)
+
+Data Files (Auto-created):
+├── practice_data.xlsx    # All practice records (NOW WITH RULE DETAILS!)
+└── users.xlsx           # User credentials
+```
+
+---
+
+## Data Storage (Updated!)
+
+All data is automatically stored in Excel files:
+
+- **practice_data.xlsx**: Contains all student practice records with:
+  - Student ID & Name
+  - Pose Type
+  - Accuracy
+  - Date & Time
+  - Duration
+  - **Rules Passed** (NEW!) - Which rules you got right
+  - **Rules Failed** (NEW!) - Which rules need improvement
+
+- **users.xlsx**: Contains user credentials (auto-created with demo users)
+
+---
+
+## UI Improvements
+
+### Layout Changes
+- **Video Feed**: Now on the LEFT side for easier viewing
+- **Analytics Panel**: On the RIGHT with clear sections
+- **Better Spacing**: Improved padding and margins throughout
+- **Larger Fonts**: More readable text sizes (18-24px for headers)
+- **Color Coding**: Green for passed rules, red for failed rules
+
+### Dark/Light Mode Support
+- All components now work in both themes
+- Proper contrast ratios maintained
+- Shadows and backgrounds adjusted for visibility
+
+### Visual Enhancements
+- Animated countdown with pulse effect
+- Colored accuracy display with better gradients
+- Section headers with underlines
+- Rule status with left border indicators
+- Improved card designs with better shadows
+
+---
+
+## Supported Poses
+
+1. **Savdhan (Attention)**
+2. **Vishram (Stand at Ease)**
+3. **Salute**
+4. **Dahine Mud (Right Turn)**
+5. **Bahine Mud (Left Turn)**
+6. **Pichhe Mud (About Turn)**
+
+---
+
+## Tips for Best Results
+
+1. **Lighting**: Ensure good lighting for better pose detection
+2. **Camera**: Position yourself fully visible in the camera frame
+3. **Space**: Stand at an appropriate distance from the camera
+4. **Stability**: Keep the camera stable during practice
+5. **Countdown**: Use the full 5-second countdown to get into position
+6. **Recording**: Hold the pose steady for the full 5 seconds
+7. **Review**: Check the "What Went Wrong" section after each practice
+
+---
+
+## Troubleshooting
+
+**Camera not working?**
+- Check if another application is using the camera
+- Ensure camera permissions are granted
+- Try restarting the application
+
+**Excel file errors?**
+- Make sure the Excel files are not open in another program
+- Check file permissions in the directory
+
+**Authentication issues?**
+- Use the exact usernames and passwords (case-sensitive)
+- Check that users.xlsx exists and contains the credentials
+
+**Layout issues?**
+- Try refreshing the page
+- Check your browser zoom level (100% recommended)
+- Clear browser cache if needed
+
+---
+
+## Customization
+
+### Adding New Users
+Edit `users.xlsx` and add rows with:
+- Username
+- Password
+- Role (student/teacher)
+- Full_Name
+
+### Changing Recording Duration
+In `student_app.py`, line ~306, modify:
+```python
+recording_duration = 5  # Change this value (seconds)
+```
+
+### Changing Countdown Duration
+In `student_app.py`, line ~281, modify:
+```python
+for i in range(5, 0, -1):  # Change 5 to your desired countdown
+```
+
+---
+
+## System Requirements
+
+- Python 3.8+
+- Webcam
+- Windows/Mac/Linux
+- Minimum 4GB RAM
+- Internet connection for first-time library downloads
+- Modern web browser (Chrome, Firefox, Edge recommended)
+
+---
+
+## What's New in This Version
+
+1. ⏱️ **5-second countdown and recording** - More time to get positioned
+2. 📊 **Side-by-side layout** - Video on left, analytics on right
+3. ✅ **Detailed rule tracking** - See exactly what went right/wrong
+4. 💾 **Enhanced Excel storage** - Rules passed/failed saved for each session
+5. 🎨 **Improved UI** - Better fonts, spacing, and dark/light mode support
+6. 🎯 **Better feedback** - Clear sections showing what to improve
+7. 📈 **Visual enhancements** - Animations, better colors, improved cards
+
+---
+
+Enjoy using the Army Drill Evaluation System! 🎖️

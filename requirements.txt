@@ -3,3 +3,6 @@ opencv-python
 python-dotenv
 streamlit
 openpyxl
+pandas
+numpy
+plotly

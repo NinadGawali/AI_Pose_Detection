@@ -37,3 +37,12 @@ The script now includes functionality to check accuracy of the chosen pose for p
 2. Select the posture you want to check 
 3. The app will use the webcam to capture live video feed and analyze the poses in real-time, providing feedback on the accuracy of the posture.
 
+### 3. Run main_app.py
+This script is the main application that integrates all the functionalities, including pose detection and posture checking. It provides a comprehensive interface for users to interact with the application and analyze their poses effectively. It also provides separate sections for students and instructors, allowing them to access relevant features and information based on their roles.
+The users login credentials are stored in the `credentials.xlsx` file. The students can view their performance statistics and the instructors can view the performance of all students and provide feedback.The performance stats are stored in the `performance_stats.xlsx` file.Both files are created when the app is run for the first time and updated with each use.
+1. Run the main app:
+   ```bash
+   streamlit run src/main_app.py
+   ```
+2. Login with your credentials. (Use demo credentials for testing)
+3. Depending on your role (student or instructor), you will have access to different features and information. Students can view their performance statistics, while instructors can view the performance of all students and provide feedback.s
