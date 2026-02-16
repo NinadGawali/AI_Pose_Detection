@@ -22,7 +22,7 @@ def check_savdhan(image, pose_landmarks):
     ANGLE_TOL = 15                # General angle tolerance
     STRAIGHT_MIN = 165            # Acceptable straight joint lower bound
     FEET_TOL = 0.18               # Feet horizontal distance tolerance
-    LEVEL_TOL = 0.04              # Vertical level tolerance
+    LEVEL_TOL = 0.08              # Vertical level tolerance
     CENTER_TOL = 0.04             # Mid alignment tolerance
     ARM_BODY_TOL = 0.20           # Relaxed arm-body closeness
 
@@ -32,6 +32,21 @@ def check_savdhan(image, pose_landmarks):
     def P(i):
         return np.array([lm[i].x, lm[i].y])
 
+    def V(i):
+        return lm[i].visibility
+    
+    required_landmarks = [
+        mp_pose.PoseLandmark.LEFT_ANKLE,
+        mp_pose.PoseLandmark.RIGHT_ANKLE,
+        mp_pose.PoseLandmark.LEFT_HEEL,
+        mp_pose.PoseLandmark.RIGHT_HEEL,
+        mp_pose.PoseLandmark.LEFT_SHOULDER,
+        mp_pose.PoseLandmark.RIGHT_SHOULDER
+    ]
+
+    if any(V(i) < 0.5 for i in required_landmarks):
+        return image, 0, {}, ["ERROR: Entire body not visible. Please step back to show your feet."], {"status": "INCOMPLETE_VIEW"}
+    
     # ----------- LANDMARKS -----------
     LS = P(mp_pose.PoseLandmark.LEFT_SHOULDER)
     RS = P(mp_pose.PoseLandmark.RIGHT_SHOULDER)
@@ -85,85 +100,54 @@ def check_savdhan(image, pose_landmarks):
     # Head alignment
     head_centered = abs(NOSE[0] - mid_shoulder_x) < CENTER_TOL
 
-    # ----------- RULES -----------
-    score = 0
-    details = {}
-
-    details["Feet together"] = (
-        ankle_dist_norm < FEET_TOL and
-        ankle_level < LEVEL_TOL
-    )
-
-    details["Elbows straight"] = (
-        left_elbow_ang >= STRAIGHT_MIN and
-        right_elbow_ang >= STRAIGHT_MIN
-    )
-
-    details["Knees straight"] = (
-        left_knee_ang >= STRAIGHT_MIN and
-        right_knee_ang >= STRAIGHT_MIN
-    )
-
-    details["Arms close to body"] = left_arm_close and right_arm_close
-
-    details["Shoulders level"] = shoulder_level < LEVEL_TOL
-
-    details["Torso vertical"] = spine_angle < ANGLE_TOL
-
-    details["Head centered"] = head_centered
-
-    total = len(details)
-
-    for k in details:
-        if details[k]:
-            score += 1
-
-    # ----------- SUGGESTIONS -----------
-    suggestions = []
-
-    if not details["Feet together"]:
-        suggestions.append("Bring your heels together and balance weight equally.")
-
-    if not details["Elbows straight"]:
-        suggestions.append("Straighten your arms fully.")
-
-    if not details["Knees straight"]:
-        suggestions.append("Lock your knees and stand tall.")
-
-    if not details["Arms close to body"]:
-        suggestions.append("Keep your arms naturally close to your thighs.")
-
-    if not details["Shoulders level"]:
-        suggestions.append("Level your shoulders and avoid tilting.")
-
-    if not details["Torso vertical"]:
-        suggestions.append("Keep your back straight and avoid leaning.")
-
-    if not details["Head centered"]:
-        suggestions.append("Keep your head straight and look forward.")
-
-    # ----------- DEBUG TEXT -----------
-    h, w, _ = image.shape
-
-    def draw_text(pt, text):
-        x = int(pt[0] * w)
-        y = int(pt[1] * h)
-        cv2.putText(image, text, (x, y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
-
-    draw_text(LE, f"E:{left_elbow_ang:.1f}")
-    draw_text(RE, f"E:{right_elbow_ang:.1f}")
-    draw_text(LK, f"K:{left_knee_ang:.1f}")
-    draw_text(RK, f"K:{right_knee_ang:.1f}")
-
-    return image, (score / total) * 100, details, suggestions, {
-        "ankle_norm": ankle_dist_norm,
-        "left_elbow": left_elbow_ang,
-        "right_elbow": right_elbow_ang,
-        "left_knee": left_knee_ang,
-        "right_knee": right_knee_ang,
-        "spine_angle": spine_angle
+    weights = {
+        "Feet Together": 30,      # Foundation of Savdhan
+        "Knees Locked": 20,       # Military stiffness
+        "Arms Pinned": 15,        # Arms must be at the side seams
+        "Elbows Straight": 10,    # No "soft" arms
+        "Torso/Shoulders": 15,    # Erect posture
+        "Head Alignment": 10      # Looking forward
     }
 
+    feet_together = (ankle_dist_norm < 0.25) and (ankle_level < LEVEL_TOL)
+    knees_straight = (left_knee_ang >= STRAIGHT_MIN and right_knee_ang >= STRAIGHT_MIN)
+    arms_pinned = (abs(LW[0] - LH[0]) / shoulder_width < 0.25 and 
+                   abs(RW[0] - RH[0]) / shoulder_width < 0.25)
+    posture_ok = (spine_angle < ANGLE_TOL and shoulder_level < LEVEL_TOL)
+    
+    checks = {
+        "Feet Together": feet_together,
+        "Knees Locked": knees_straight,
+        "Arms Pinned": arms_pinned,
+        "Elbows Straight": (left_elbow_ang >= STRAIGHT_MIN and right_elbow_ang >= STRAIGHT_MIN),
+        "Torso/Shoulders": posture_ok,
+        "Head Alignment": head_centered
+    }
 
+    final_score = 0
+    suggestions = []
 
+    for feature, passed in checks.items():
+        if passed:
+            final_score += weights[feature]
+        else:
+            # Map specific suggestions
+            if feature == "Feet Together":
+                suggestions.append("Heels must be touching.")
+            elif feature == "Arms Pinned":
+                suggestions.append("Pin your arms tightly to your side seams.")
+            else:
+                suggestions.append(f"Adjust: {feature}")
+
+    # ====================================================
+    #           CRITICAL FAILURE PENALTIES
+    # ====================================================
+    # If the feet are wide apart, the posture is NOT Savdhan. 
+    # Cap the score at 40% regardless of how perfect the upper body is.
+    if not feet_together and final_score > 40:
+        final_score = 40
+        suggestions.append("CRITICAL: Feet must touch for Savdhan.")
+
+    # ... [Keep your Debug Text drawing code] ...
+
+    return image, final_score, checks, suggestions, {"status": "OK"}

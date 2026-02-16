@@ -197,7 +197,7 @@ elif st.session_state.page == "evaluation":
     info_placeholder = st.empty()
 
     if st.session_state.camera_running:
-
+        meta = {}
         cap = cv2.VideoCapture(0)
 
         mp_pose = mp.solutions.pose
@@ -236,22 +236,22 @@ elif st.session_state.page == "evaluation":
                     )
 
                     if pose_option == "Savdhan (Attention)":
-                        frame, accuracy, details, suggestions, _ = check_savdhan(frame, results.pose_landmarks)
+                        frame, accuracy, details, suggestions, meta = check_savdhan(frame, results.pose_landmarks)
 
                     elif pose_option == "Vishram (Stand at Ease)":
-                        frame, accuracy, details, suggestions = check_vishram(frame, results.pose_landmarks)
+                        frame, accuracy, details, suggestions, meta = check_vishram(frame, results.pose_landmarks)
 
                     elif pose_option == "Salute":
-                        frame, accuracy, details, suggestions, _ = check_salute(frame, results.pose_landmarks)
+                        frame, accuracy, details, suggestions, meta = check_salute(frame, results.pose_landmarks)
 
                     elif pose_option == "Dahine Mud (Right Turn)":
-                        frame, accuracy, details, suggestions = check_dahine_mud(frame, results.pose_landmarks)
+                        frame, accuracy, details, suggestions, meta = check_dahine_mud(frame, results.pose_landmarks)
 
                     elif pose_option == "Bahine Mud (Left Turn)":
-                        frame, accuracy, details, suggestions = check_bahine_mud(frame, results.pose_landmarks)
+                        frame, accuracy, details, suggestions, meta = check_bahine_mud(frame, results.pose_landmarks)
 
                     elif pose_option == "Pichhe Mud (About Turn)":
-                        frame, accuracy, details, suggestions = check_pichhe_mud(frame, results.pose_landmarks)
+                        frame, accuracy, details, suggestions, meta = check_pichhe_mud(frame, results.pose_landmarks)
 
                 # ===============================
                 # POSE HOLD STABILITY (2 SEC)
@@ -274,7 +274,10 @@ elif st.session_state.page == "evaluation":
                 # ===============================
                 # DISPLAY RESULTS
                 # ===============================
-
+                if meta.get("status") == "INCOMPLETE_VIEW":
+                    cv2.putText(frame, "STEP BACK: SHOW ENTIRE BODY", (50, 50), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+                    
                 if accuracy >= 85:
                     color = "#22c55e"
                 elif accuracy >= 60:

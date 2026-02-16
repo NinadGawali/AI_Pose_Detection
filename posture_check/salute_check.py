@@ -24,6 +24,21 @@ def check_salute(image, pose_landmarks):
     def P(i):
         return np.array([lm[i].x, lm[i].y])
 
+    def V(i):
+        return lm[i].visibility
+    
+    required_landmarks = [
+        mp_pose.PoseLandmark.LEFT_ANKLE,
+        mp_pose.PoseLandmark.RIGHT_ANKLE,
+        mp_pose.PoseLandmark.LEFT_HEEL,
+        mp_pose.PoseLandmark.RIGHT_HEEL,
+        mp_pose.PoseLandmark.LEFT_SHOULDER,
+        mp_pose.PoseLandmark.RIGHT_SHOULDER
+    ]
+
+    if any(V(i) < 0.5 for i in required_landmarks):
+        return image, 0, {}, ["ERROR: Entire body not visible. Please step back to show your feet."], {"status": "INCOMPLETE_VIEW"}
+    
     # -------- Landmarks --------
     LS = P(mp_pose.PoseLandmark.LEFT_SHOULDER)
     RS = P(mp_pose.PoseLandmark.RIGHT_SHOULDER)
@@ -40,6 +55,9 @@ def check_salute(image, pose_landmarks):
     LA = P(mp_pose.PoseLandmark.LEFT_ANKLE)
     RA = P(mp_pose.PoseLandmark.RIGHT_ANKLE)
 
+    LK = P(mp_pose.PoseLandmark.LEFT_KNEE)
+    RK = P(mp_pose.PoseLandmark.RIGHT_KNEE)
+    
     REYE = P(mp_pose.PoseLandmark.RIGHT_EYE)
 
     # -------- Body Proportions --------
@@ -88,55 +106,58 @@ def check_salute(image, pose_landmarks):
     forearm_vertical = abs(RW[1] - RE[1]) / torso_length
     forearm_lifted = forearm_vertical < 0.7
 
-    # 7️⃣ Feet together (Salute must be from Savdhan)
-    ankle_distance = abs(LA[0] - RA[0]) / shoulder_width
-    feet_together = ankle_distance < 0.3
+    ankle_gap = abs(LA[0] - RA[0]) / shoulder_width
+    heels_together = ankle_gap < 0.30  
 
+    knee_gap = abs(LK[0] - RK[0]) / shoulder_width
+    knees_together = knee_gap < 0.30
+
+    left_leg_angle = angle(LH, LK, LA)
+    right_leg_angle = angle(RH, RK, RA)
+    legs_straight = left_leg_angle > 160 and right_leg_angle > 160
+
+    # 4. Left Arm Pinned (The 'Savdhan' Arm)
+    left_arm_pinned = abs(LW[0] - LH[0]) / shoulder_width < 0.2
+    legs_together = heels_together and knees_together and legs_straight
+    
     # ====================================================
     #                      SCORING
     # ====================================================
+    weights = {
+        "Heels Together": 15,
+        "Knees Together": 15,
+        "Legs Straight": 10,
+        "Left Arm Pinned": 10,
+        "Wrist Positioning": 25,
+        "Elbow Height": 15,
+        "Body Posture": 10
+    }
+    # details = {}
+    # total = 7
+    # score = 0
 
-    details = {}
-    total = 7
-    score = 0
 
-    details["Wrist near eyebrow"] = wrist_near_eye
-    details["Wrist lifted"] = wrist_lifted
-    details["Elbow raised"] = elbow_raised
-    details["Left arm straight"] = left_arm_straight
-    details["Body erect"] = body_erect
-    details["Forearm lifted"] = forearm_lifted
-    details["Feet together"] = feet_together
-
-    for k in details:
-        if details[k]:
-            score += 1
-
-    # ====================================================
-    #                   SUGGESTIONS
-    # ====================================================
-
+    checks = {
+        "Heels Together": heels_together,
+        "Knees Together": knees_together,
+        "Legs Straight": legs_straight,
+        "Left Arm Pinned": left_arm_pinned,
+        "Wrist Positioning": wrist_near_eye,
+        "Elbow Height": elbow_raised,
+        "Body Posture": body_erect
+    }
+    final_score = 0
     suggestions = []
 
-    if not wrist_near_eye:
-        suggestions.append("Align your right hand closer to eyebrow level.")
+    for feature, passed in checks.items():
+        if passed:
+            final_score += weights[feature]
+        else:
+            suggestions.append(f"Fix {feature}")
 
-    if not wrist_lifted:
-        suggestions.append("Raise your right wrist slightly.")
+    # CRITICAL PENALTY: If legs are wide apart, cap the score at 50%
+    if not heels_together and final_score > 50:
+        final_score = 50
+        suggestions.append("CRITICAL: Heels must touch for a valid salute.")
 
-    if not elbow_raised:
-        suggestions.append("Lift your elbow to proper salute height.")
-
-    if not left_arm_straight:
-        suggestions.append("Keep your left arm straight beside your thigh.")
-
-    if not body_erect:
-        suggestions.append("Stand upright without leaning.")
-
-    if not forearm_lifted:
-        suggestions.append("Ensure your forearm is properly lifted.")
-
-    if not feet_together:
-        suggestions.append("Bring your heels together in attention position.")
-
-    return image, (score / total) * 100, details, suggestions, {}
+    return image, final_score, checks, suggestions, {}
