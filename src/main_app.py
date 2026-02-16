@@ -10,7 +10,7 @@ import os
 # Add parent directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from auth_utils import initialize_session, login, logout, is_authenticated, get_current_user
+from auth_utils import initialize_session, login, logout, is_authenticated, get_current_user, register, check_username_exists
 from student_app import show_student_dashboard
 from teacher_app import show_teacher_dashboard
 
@@ -28,147 +28,109 @@ st.set_page_config(
 
 
 # ==========================================================
-# GLOBAL STYLES
+# GLOBAL STYLES - Clean & Minimal
 # ==========================================================
 
 st.markdown("""
 <style>
-    /* Login container - improved for dark/light mode */
-    .login-container {
-        background: rgba(255, 255, 255, 0.98);
-        padding: 50px;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-        max-width: 500px;
+    /* Clean minimal design */
+    .main-container {
+        max-width: 420px;
         margin: 0 auto;
+        padding: 40px 30px;
     }
     
-    .login-header {
+    .app-header {
         text-align: center;
-        margin-bottom: 40px;
-    }
-    
-    .login-title {
-        font-size: 52px;
-        font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 10px;
-        font-family: 'Segoe UI', Arial, sans-serif;
-    }
-    
-    .login-subtitle {
-        font-size: 20px;
-        color: #6b7280;
-        font-family: 'Segoe UI', Arial, sans-serif;
-    }
-    
-    /* Hero section */
-    .hero-section {
-        text-align: center;
-        padding: 80px 20px;
-        color: white;
-    }
-    
-    .hero-title {
-        font-size: 76px;
-        font-weight: 700;
-        margin-bottom: 20px;
-        text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
-        font-family: 'Segoe UI', Arial, sans-serif;
-    }
-    
-    .hero-subtitle {
-        font-size: 26px;
-        margin-bottom: 40px;
-        opacity: 0.95;
-        font-family: 'Segoe UI', Arial, sans-serif;
-        text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-    }
-    
-    .hero-icon {
-        font-size: 130px;
         margin-bottom: 30px;
-        animation: float 3s ease-in-out infinite;
-        filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.3));
     }
     
-    @keyframes float {
-        0%, 100% {
-            transform: translateY(0px);
-        }
-        50% {
-            transform: translateY(-20px);
-        }
+    .app-logo {
+        font-size: 60px;
+        margin-bottom: 10px;
     }
     
-    /* Feature cards - improved contrast */
-    .feature-card {
-        background: rgba(255, 255, 255, 0.98);
-        padding: 35px;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        margin: 10px 0;
-        text-align: center;
-    }
-    
-    .feature-icon {
-        font-size: 48px;
-        margin-bottom: 15px;
-    }
-    
-    .feature-title {
-        font-size: 22px;
+    .app-title {
+        font-size: 28px;
         font-weight: 600;
-        color: #1f2937;
-        margin-bottom: 10px;
+        color: #1a1a2e;
+        margin-bottom: 5px;
     }
     
-    .feature-desc {
-        font-size: 15px;
-        color: #6b7280;
-        line-height: 1.6;
-    }
-    
-    /* Navbar */
-    .navbar {
-        background: white;
-        padding: 20px 40px;
-        border-radius: 15px;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .navbar-title {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1f2937;
-    }
-    
-    .navbar-user {
-        font-size: 16px;
+    .app-subtitle {
+        font-size: 14px;
         color: #6b7280;
     }
     
-    /* Stbutton overrides */
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        justify-content: center;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    
+    /* Form styling */
+    .stTextInput > div > div > input {
+        border-radius: 8px;
+        border: 1.5px solid #e5e7eb;
+        padding: 12px 14px;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+    }
+    
+    /* Button styling */
     .stButton > button {
         width: 100%;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 16px;
-        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 15px;
+        padding: 12px 20px;
         border: none;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
+    }
+    
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
+    
+    /* Radio button styling */
+    .stRadio > div {
+        justify-content: center;
+        gap: 20px;
+    }
+    
+    /* Divider */
+    hr {
+        margin: 20px 0;
+        border: none;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    /* Success/Error messages */
+    .stAlert {
+        border-radius: 8px;
+    }
+    
+    /* Navbar - minimal */
+    .navbar-minimal {
+        background: #ffffff;
+        padding: 16px 24px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        border: 1px solid #e5e7eb;
 </style>
 """, unsafe_allow_html=True)
 
@@ -185,111 +147,105 @@ initialize_session()
 # ==========================================================
 
 def show_login_page():
-    """Display login page"""
+    """Display clean login/register page"""
     
-    # Hero section
-    st.markdown("""
-    <div class="hero-section">
-        <div class="hero-icon">🎖️</div>
-        <div class="hero-title">Army Drill Evaluation</div>
-        <div class="hero-subtitle">AI-Powered Pose Analysis & Training System</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Login form
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Centered container
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     
     with col2:
-        st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-        
+        # Header
         st.markdown("""
-        <div class='login-header'>
-            <div class='login-title'>🔐 Login</div>
-            <div class='login-subtitle'>Select your role and sign in</div>
+        <div class="app-header">
+            <div class="app-logo">🎖️</div>
+            <div class="app-title">Army Drill Evaluation</div>
+            <div class="app-subtitle">AI-Powered Pose Analysis System</div>
         </div>
         """, unsafe_allow_html=True)
         
-        # Role selection
-        role = st.radio(
-            "I am a:",
-            ["👨‍🎓 Student", "👨‍🏫 Teacher"],
-            horizontal=True,
-            label_visibility="collapsed"
-        )
+        # Tabs for Login/Register
+        tab1, tab2 = st.tabs(["Sign In", "Create Account"])
         
-        role_value = "student" if "Student" in role else "teacher"
-        
-        st.markdown("---")
-        
-        # Login form
-        with st.form("login_form"):
-            username = st.text_input("Username", placeholder="Enter your username")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
+        # ============ LOGIN TAB ============
+        with tab1:
+            st.markdown("<br>", unsafe_allow_html=True)
             
-            submit = st.form_submit_button("🚀 Login", use_container_width=True, type="primary")
+            # Role selection
+            role = st.radio(
+                "Select Role",
+                ["Student", "Teacher"],
+                horizontal=True,
+                key="login_role"
+            )
+            role_value = role.lower()
             
-            if submit:
-                if not username or not password:
-                    st.error("⚠️ Please enter both username and password")
-                else:
-                    if login(username, password, role_value):
-                        st.success(f"✅ Welcome back!")
-                        st.rerun()
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Login form
+            with st.form("login_form", clear_on_submit=False):
+                username = st.text_input("Username", placeholder="Enter username", key="login_user")
+                password = st.text_input("Password", type="password", placeholder="Enter password", key="login_pass")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                submit = st.form_submit_button("Sign In", use_container_width=True, type="primary")
+                
+                if submit:
+                    if not username or not password:
+                        st.error("Please fill in all fields")
                     else:
-                        st.error("❌ Invalid credentials. Please try again.")
-        
-        st.markdown("---")
-        
-        # Demo credentials
-        with st.expander("📝 Demo Credentials"):
-            st.markdown("""
-            **Student Accounts:**
-            - Username: `student1` | Password: `pass123`
-            - Username: `student2` | Password: `pass123`
+                        if login(username.lower(), password, role_value):
+                            st.success("Welcome back!")
+                            st.rerun()
+                        else:
+                            st.error("Invalid credentials")
             
-            **Teacher Account:**
-            - Username: `teacher1` | Password: `admin123`
-            """)
+            # Demo credentials
+            with st.expander("Demo Accounts", expanded=False):
+                st.caption("**Students:** student1 / pass123")
+                st.caption("**Teacher:** teacher1 / admin123")
         
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Features section
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    features = [
-        {
-            "icon": "🎯",
-            "title": "Real-Time Analysis",
-            "desc": "Get instant feedback on your drill postures with AI-powered detection"
-        },
-        {
-            "icon": "📊",
-            "title": "Progress Tracking",
-            "desc": "Monitor your improvement over time with detailed statistics"
-        },
-        {
-            "icon": "👥",
-            "title": "Class Management",
-            "desc": "Teachers can track all students' performance in one place"
-        },
-        {
-            "icon": "📈",
-            "title": "Analytics Dashboard",
-            "desc": "Comprehensive analytics and insights for better training"
-        }
-    ]
-    
-    for col, feature in zip([col1, col2, col3, col4], features):
-        with col:
-            st.markdown(f"""
-            <div class='feature-card'>
-                <div class='feature-icon'>{feature['icon']}</div>
-                <div class='feature-title'>{feature['title']}</div>
-                <div class='feature-desc'>{feature['desc']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        # ============ REGISTER TAB ============
+        with tab2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Role selection for registration
+            reg_role = st.radio(
+                "I am a",
+                ["Student", "Teacher"],
+                horizontal=True,
+                key="reg_role"
+            )
+            reg_role_value = reg_role.lower()
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Registration form
+            with st.form("register_form", clear_on_submit=True):
+                full_name = st.text_input("Full Name", placeholder="Enter your full name", key="reg_name")
+                reg_username = st.text_input("Username", placeholder="Choose a unique username", key="reg_user")
+                reg_password = st.text_input("Password", type="password", placeholder="Create password (min 4 chars)", key="reg_pass")
+                reg_password2 = st.text_input("Confirm Password", type="password", placeholder="Confirm password", key="reg_pass2")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                register_btn = st.form_submit_button("Create Account", use_container_width=True, type="primary")
+                
+                if register_btn:
+                    # Validation
+                    if not full_name or not reg_username or not reg_password:
+                        st.error("Please fill in all fields")
+                    elif len(reg_username) < 3:
+                        st.error("Username must be at least 3 characters")
+                    elif reg_password != reg_password2:
+                        st.error("Passwords do not match")
+                    elif len(reg_password) < 4:
+                        st.error("Password must be at least 4 characters")
+                    elif check_username_exists(reg_username.lower()):
+                        st.error("Username already taken. Please choose another.")
+                    else:
+                        success, message = register(reg_username.lower(), reg_password, full_name, reg_role_value)
+                        if success:
+                            st.success("Account created! Please sign in.")
+                        else:
+                            st.error(message)
 
 
 # ==========================================================
@@ -304,24 +260,28 @@ def main():
     else:
         user = get_current_user()
         
-        # Navigation bar
-        col1, col2 = st.columns([3, 1])
+        # Clean minimal navigation bar
+        col1, col2, col3 = st.columns([0.5, 3, 1])
         
         with col1:
+            st.markdown("<div style='font-size: 32px; padding-top: 8px;'>🎖️</div>", unsafe_allow_html=True)
+        
+        with col2:
             st.markdown(f"""
-            <div style='background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px;'>
-                <span style='font-size: 24px; font-weight: 700; color: #1f2937;'>
-                    🎖️ Army Drill Evaluation System
-                </span>
-                <span style='font-size: 16px; color: #6b7280; margin-left: 20px;'>
-                    👤 {user['full_name']} ({user['role'].title()})
+            <div style='padding-top: 12px;'>
+                <span style='font-size: 18px; font-weight: 600; color: #1f2937;'>Army Drill Evaluation</span>
+                <span style='font-size: 14px; color: #6b7280; margin-left: 16px;'>
+                    {user['full_name']} • {user['role'].title()}
                 </span>
             </div>
             """, unsafe_allow_html=True)
         
-        with col2:
-            if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+        with col3:
+            if st.button("Sign Out", use_container_width=True, type="secondary"):
                 logout()
+                st.rerun()
+        
+        st.markdown("<hr style='margin: 10px 0 20px 0; border: none; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
         
         # Route to appropriate dashboard
         if user['role'] == 'student':

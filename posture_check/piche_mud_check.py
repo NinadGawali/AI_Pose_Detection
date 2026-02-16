@@ -52,4 +52,4 @@ def check_pichhe_mud(image, pose_landmarks):
 
     suggestions = [k for k, v in details.items() if not v]
 
-    return image, (score / total) * 100, details, suggestions
+    return image, (score / total) * 100, details, suggestions, {}

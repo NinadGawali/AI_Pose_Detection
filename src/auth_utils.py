@@ -57,3 +57,15 @@ def get_current_user():
         'full_name': st.session_state.get('full_name'),
         'role': st.session_state.get('role')
     }
+
+
+def register(username, password, full_name, role):
+    """Register a new user. Returns (success, message)"""
+    data_manager = DataManager()
+    return data_manager.register_user(username, password, full_name, role)
+
+
+def check_username_exists(username):
+    """Check if username already exists"""
+    data_manager = DataManager()
+    return data_manager.username_exists(username)

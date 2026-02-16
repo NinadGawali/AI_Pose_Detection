@@ -201,3 +201,63 @@ class DataManager:
         except Exception as e:
             print(f"Error getting recent activities: {e}")
             return []
+    
+    def username_exists(self, username):
+        """Check if a username already exists"""
+        try:
+            users_df = pd.read_excel(self.users_file)
+            return username.lower() in users_df['Username'].str.lower().values
+        except Exception as e:
+            print(f"Error checking username: {e}")
+            return False
+    
+    def register_user(self, username, password, full_name, role):
+        """Register a new user. Returns (success, message)"""
+        try:
+            # Validate inputs
+            if not username or not password or not full_name:
+                return False, "All fields are required"
+            
+            if len(username) < 3:
+                return False, "Username must be at least 3 characters"
+            
+            if len(password) < 4:
+                return False, "Password must be at least 4 characters"
+            
+            if role not in ['student', 'teacher']:
+                return False, "Invalid role"
+            
+            # Check if username exists
+            if self.username_exists(username):
+                return False, "Username already exists"
+            
+            # Read existing users
+            users_df = pd.read_excel(self.users_file)
+            
+            # Add new user
+            new_user = {
+                'Username': username.lower(),
+                'Password': password,
+                'Role': role,
+                'Full_Name': full_name
+            }
+            
+            users_df = pd.concat([users_df, pd.DataFrame([new_user])], ignore_index=True)
+            users_df.to_excel(self.users_file, index=False)
+            self._format_excel(self.users_file)
+            
+            return True, "Registration successful"
+        except Exception as e:
+            print(f"Registration error: {e}")
+            return False, f"Registration failed: {str(e)}"
+    
+    def get_all_users(self, role=None):
+        """Get all users, optionally filtered by role"""
+        try:
+            users_df = pd.read_excel(self.users_file)
+            if role:
+                users_df = users_df[users_df['Role'] == role]
+            return users_df[['Username', 'Full_Name', 'Role']].to_dict('records')
+        except Exception as e:
+            print(f"Error getting users: {e}")
+            return []
