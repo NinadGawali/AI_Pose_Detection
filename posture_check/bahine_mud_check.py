@@ -17,54 +17,60 @@ def angle(a, b, c):
     return np.degrees(np.arccos(cosang))
 
 def check_bahine_mud(image, pose_landmarks):
-
-    ANGLE_TOL = 20
-    SHRINK_THRESHOLD = 0.6
-    LEVEL_TOL = 0.05
-
     mp_pose = mp.solutions.pose
     lm = pose_landmarks.landmark
 
-    def P(i):
-        return np.array([lm[i].x, lm[i].y])
-    
-    def V(i):
-        return lm[i].visibility
+    def P(i): return np.array([lm[i].x, lm[i].y])
+    def V(i): return lm[i].visibility
+    def Z(i): return lm[i].z
     
     required_landmarks = [
-        mp_pose.PoseLandmark.LEFT_ANKLE,
-        mp_pose.PoseLandmark.RIGHT_ANKLE,
-        mp_pose.PoseLandmark.LEFT_HEEL,
-        mp_pose.PoseLandmark.RIGHT_HEEL,
-        mp_pose.PoseLandmark.LEFT_SHOULDER,
-        mp_pose.PoseLandmark.RIGHT_SHOULDER
+        mp_pose.PoseLandmark.LEFT_ANKLE, mp_pose.PoseLandmark.RIGHT_ANKLE,
+        mp_pose.PoseLandmark.LEFT_SHOULDER, mp_pose.PoseLandmark.RIGHT_SHOULDER
     ]
 
     if any(V(i) < 0.5 for i in required_landmarks):
         return image, 0, {}, ["ERROR: Entire body not visible. Please step back to show your feet."], {"status": "INCOMPLETE_VIEW"}
     
+    LS_raw = lm[mp_pose.PoseLandmark.LEFT_SHOULDER]
+    RS_raw = lm[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+    
     LS = P(mp_pose.PoseLandmark.LEFT_SHOULDER)
     RS = P(mp_pose.PoseLandmark.RIGHT_SHOULDER)
-    LH = P(mp_pose.PoseLandmark.LEFT_HIP)
-    RH = P(mp_pose.PoseLandmark.RIGHT_HIP)
+    LA = P(mp_pose.PoseLandmark.LEFT_ANKLE)
+    RA = P(mp_pose.PoseLandmark.RIGHT_ANKLE)
 
-    shoulder_width = abs(LS[0] - RS[0])
-    hip_width = abs(LH[0] - RH[0])
+    shoulder_x_gap = abs(LS[0] - RS[0])
+    # 0.08 is a very strict threshold (about 8% of frame width)
+    is_rotated_x = shoulder_x_gap < 0.08 
 
-    mid_shoulder = (LS + RS) / 2
-    mid_hip = (LH + RH) / 2
-    vertical_ref = mid_shoulder + np.array([0, 1])
-    spine_angle = angle(vertical_ref, mid_shoulder, mid_hip)
+    # 2. THE DIRECTION CHECK (Z-axis)
+    # For a LEFT turn (Bahine Mud), the Right Shoulder MUST be closer to the camera.
+    # In MediaPipe, smaller Z means closer to camera.
+    turned_left_correctly = RS_raw.z < LS_raw.z - 0.1 
 
-    details = {}
+    # 3. FEET ALIGNMENT
+    feet_stacked = abs(LA[0] - RA[0]) < 0.08
 
-    details["Body rotated 90° left"] = shoulder_width < SHRINK_THRESHOLD * hip_width
-    details["Torso vertical"] = spine_angle < ANGLE_TOL
-    details["Shoulders level"] = abs(LS[1] - RS[1]) < LEVEL_TOL
+    # ----------- WEIGHTED SCORING -----------
+    details = {
+        "Shoulders Stacked": is_rotated_x,
+        "Turned Left (Not Right)": turned_left_correctly,
+        "Feet Aligned": feet_stacked
+    }
 
-    score = sum(details.values())
-    total = len(details)
+    # Weightage: 40% for stacking, 40% for correct direction, 20% for feet.
+    score = 0
+    if is_rotated_x: score += 30
+    if turned_left_correctly: score += 50
+    if feet_stacked: score += 20
 
-    suggestions = [k for k, v in details.items() if not v]
+    suggestions = []
+    if not is_rotated_x:
+        suggestions.append("Turn your shoulders fully 90 degrees.")
+    if not turned_left_correctly:
+        suggestions.append("Ensure you turned LEFT (Right shoulder should face camera).")
+    if not feet_stacked:
+        suggestions.append("Align your heels in a single line.")
 
-    return image, (score / total) * 100, details, suggestions, {}
+    return image, score, details, suggestions, {"x_gap": shoulder_x_gap, "z_diff": RS_raw.z - LS_raw.z}

@@ -197,7 +197,7 @@ elif st.session_state.page == "evaluation":
     info_placeholder = st.empty()
 
     if st.session_state.camera_running:
-
+        meta = {}
         cap = cv2.VideoCapture(0)
 
         mp_pose = mp.solutions.pose
