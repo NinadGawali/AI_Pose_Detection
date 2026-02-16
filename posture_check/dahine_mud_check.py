@@ -28,6 +28,21 @@ def check_dahine_mud(image, pose_landmarks):
     def P(i):
         return np.array([lm[i].x, lm[i].y])
 
+    def V(i):
+        return lm[i].visibility
+    
+    required_landmarks = [
+        mp_pose.PoseLandmark.LEFT_ANKLE,
+        mp_pose.PoseLandmark.RIGHT_ANKLE,
+        mp_pose.PoseLandmark.LEFT_HEEL,
+        mp_pose.PoseLandmark.RIGHT_HEEL,
+        mp_pose.PoseLandmark.LEFT_SHOULDER,
+        mp_pose.PoseLandmark.RIGHT_SHOULDER
+    ]
+
+    if any(V(i) < 0.5 for i in required_landmarks):
+        return image, 0, {}, ["ERROR: Entire body not visible. Please step back to show your feet."], {"status": "INCOMPLETE_VIEW"}
+    
     LS = P(mp_pose.PoseLandmark.LEFT_SHOULDER)
     RS = P(mp_pose.PoseLandmark.RIGHT_SHOULDER)
     LH = P(mp_pose.PoseLandmark.LEFT_HIP)
@@ -52,4 +67,4 @@ def check_dahine_mud(image, pose_landmarks):
 
     suggestions = [k for k, v in details.items() if not v]
 
-    return image, (score / total) * 100, details, suggestions
+    return image, (score / total) * 100, details, suggestions, {}
