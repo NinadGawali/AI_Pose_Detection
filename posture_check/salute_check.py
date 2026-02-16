@@ -107,10 +107,10 @@ def check_salute(image, pose_landmarks):
     forearm_lifted = forearm_vertical < 0.7
 
     ankle_gap = abs(LA[0] - RA[0]) / shoulder_width
-    heels_together = ankle_gap < 0.25  
+    heels_together = ankle_gap < 0.30  
 
     knee_gap = abs(LK[0] - RK[0]) / shoulder_width
-    knees_together = knee_gap < 0.25
+    knees_together = knee_gap < 0.30
 
     left_leg_angle = angle(LH, LK, LA)
     right_leg_angle = angle(RH, RK, RA)

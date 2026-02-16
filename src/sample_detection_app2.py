@@ -236,7 +236,7 @@ elif st.session_state.page == "evaluation":
                     )
 
                     if pose_option == "Savdhan (Attention)":
-                        frame, accuracy, details, suggestions, _ = check_savdhan(frame, results.pose_landmarks)
+                        frame, accuracy, details, suggestions, meta = check_savdhan(frame, results.pose_landmarks)
 
                     elif pose_option == "Vishram (Stand at Ease)":
                         frame, accuracy, details, suggestions, meta = check_vishram(frame, results.pose_landmarks)
