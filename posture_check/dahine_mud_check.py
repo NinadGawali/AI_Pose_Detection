@@ -16,56 +16,74 @@ def angle(a, b, c):
 
     return np.degrees(np.arccos(cosang))
 
-def check_bahine_mud(image, pose_landmarks):
+def check_dahine_mud(image, pose_landmarks):
     mp_pose = mp.solutions.pose
     lm = pose_landmarks.landmark
 
     def P(i): return np.array([lm[i].x, lm[i].y])
     def V(i): return lm[i].visibility
-    def Z(i): return lm[i].z # Depth
+    def Z(i): return lm[i].z # Depth (Lower is closer to camera)
+
+    # ----------- FULL BODY GATE -----------
+    required_landmarks = [
+        mp_pose.PoseLandmark.LEFT_ANKLE, mp_pose.PoseLandmark.RIGHT_ANKLE,
+        mp_pose.PoseLandmark.LEFT_SHOULDER, mp_pose.PoseLandmark.RIGHT_SHOULDER
+    ]
+    if any(V(i) < 0.5 for i in required_landmarks):
+        return image, 0, {}, ["ERROR: Entire body not visible. Please step back."], {"status": "INCOMPLETE_VIEW"}
 
     # ----------- LANDMARKS -----------
-    LS_raw = lm[mp_pose.PoseLandmark.LEFT_SHOULDER]
-    RS_raw = lm[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+    LS, RS = P(mp_pose.PoseLandmark.LEFT_SHOULDER), P(mp_pose.PoseLandmark.RIGHT_SHOULDER)
+    LH, RH = P(mp_pose.PoseLandmark.LEFT_HIP), P(mp_pose.PoseLandmark.RIGHT_HIP)
+    LA, RA = P(mp_pose.PoseLandmark.LEFT_ANKLE), P(mp_pose.PoseLandmark.RIGHT_ANKLE)
+
+    # ----------- REFINED LOGIC -----------
     
-    LS = P(mp_pose.PoseLandmark.LEFT_SHOULDER)
-    RS = P(mp_pose.PoseLandmark.RIGHT_SHOULDER)
-    LA = P(mp_pose.PoseLandmark.LEFT_ANKLE)
-    RA = P(mp_pose.PoseLandmark.RIGHT_ANKLE)
+    turned_right_correctly = Z(mp_pose.PoseLandmark.LEFT_SHOULDER) < Z(mp_pose.PoseLandmark.RIGHT_SHOULDER) - 0.1
 
-    # 1. THE STACKING CHECK (X-axis)
-    # At 90 degrees, the distance between shoulder X-coords should be almost zero.
+    # 2. THE STACKING CHECK (X-axis)
+    # Shoulders should "overlap" horizontally at 90 degrees
     shoulder_x_gap = abs(LS[0] - RS[0])
-    # 0.08 is a very strict threshold (about 8% of frame width)
-    is_rotated_x = shoulder_x_gap < 0.08 
-
-    # 2. THE DIRECTION CHECK (Z-axis)
-    # For a LEFT turn (Bahine Mud), the Right Shoulder MUST be closer to the camera.
-    # In MediaPipe, smaller Z means closer to camera.
-    turned_left_correctly = RS_raw.z < LS_raw.z - 0.1 
+    is_rotated_x = shoulder_x_gap < 0.10 # Tight threshold
 
     # 3. FEET ALIGNMENT
-    feet_stacked = abs(LA[0] - RA[0]) < 0.08
+    # One foot behind the other from camera perspective
+    feet_stacked = abs(LA[0] - RA[0]) < 0.10
+    
+    # 4. VERTICALITY
+    mid_sh_x = (LS[0] + RS[0]) / 2
+    mid_hip_x = (LH[0] + RH[0]) / 2
+    is_vertical = abs(mid_sh_x - mid_hip_x) < 0.05
 
-    # ----------- WEIGHTED SCORING -----------
-    details = {
-        "Shoulders Stacked": is_rotated_x,
-        "Turned Left (Not Right)": turned_left_correctly,
-        "Feet Aligned": feet_stacked
+    weights = {
+        "Turned Right (Direction)": 40,
+        "90 Degree Rotation": 30,
+        "Feet Alignment": 20,
+        "Postural Verticality": 10
     }
 
-    # Weightage: 40% for stacking, 40% for correct direction, 20% for feet.
-    score = 0
-    if is_rotated_x: score += 40
-    if turned_left_correctly: score += 40
-    if feet_stacked: score += 20
+    checks = {
+        "Turned Right (Direction)": turned_right_correctly,
+        "90 Degree Rotation": is_rotated_x,
+        "Feet Alignment": feet_stacked,
+        "Postural Verticality": is_vertical
+    }
 
+    final_score = 0
     suggestions = []
-    if not is_rotated_x:
-        suggestions.append("Turn your shoulders fully 90 degrees.")
-    if not turned_left_correctly:
-        suggestions.append("Ensure you turned LEFT (Right shoulder should face camera).")
-    if not feet_stacked:
-        suggestions.append("Align your heels in a single line.")
+    for feature, passed in checks.items():
+        if passed:
+            final_score += weights[feature]
+        else:
+            if feature == "Turned Right (Direction)":
+                suggestions.append("Pivot RIGHT (Left shoulder should face camera).")
+            elif feature == "90 Degree Rotation":
+                suggestions.append("Turn your body fully sideways.")
+            else:
+                suggestions.append(f"Adjust {feature}")
 
-    return image, score, details, suggestions, {"x_gap": shoulder_x_gap, "z_diff": RS_raw.z - LS_raw.z}
+    # CRITICAL PENALTY: If facing camera, cap the score
+    if not turned_right_correctly and final_score > 30:
+        final_score = 30
+
+    return image, final_score, checks, suggestions, {"status": "OK"}
