@@ -17,54 +17,60 @@ def angle(a, b, c):
     return np.degrees(np.arccos(cosang))
 
 def check_pichhe_mud(image, pose_landmarks):
-
-    ANGLE_TOL = 20
-    LEVEL_TOL = 0.05
-
     mp_pose = mp.solutions.pose
     lm = pose_landmarks.landmark
 
-    def P(i):
-        return np.array([lm[i].x, lm[i].y])
+    def P(i): return np.array([lm[i].x, lm[i].y])
+    def V(i): return lm[i].visibility
+    def Z(i): return lm[i].z
 
-    def V(i):
-        return lm[i].visibility
+    # -------- 1. ROTATION LOGIC (SWAP-CENTRIC) --------
     
-    required_landmarks = [
-        mp_pose.PoseLandmark.LEFT_ANKLE,
-        mp_pose.PoseLandmark.RIGHT_ANKLE,
-        mp_pose.PoseLandmark.LEFT_HEEL,
-        mp_pose.PoseLandmark.RIGHT_HEEL,
-        mp_pose.PoseLandmark.LEFT_SHOULDER,
-        mp_pose.PoseLandmark.RIGHT_SHOULDER
-    ]
+    # X-Swap Logic (PRIMARY WEIGHT)
+    # Facing Camera: Left Shoulder (11).x > Right Shoulder (12).x 
+    # Facing Away: Left Shoulder (11).x < Right Shoulder (12).x
+    ls_x = lm[mp_pose.PoseLandmark.LEFT_SHOULDER].x
+    rs_x = lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].x
+    is_swapped = ls_x < rs_x
 
-    if any(V(i) < 0.5 for i in required_landmarks):
-        return image, 0, {}, ["ERROR: Entire body not visible. Please step back to show your feet."], {"status": "INCOMPLETE_VIEW"}
+    # -------- 2. OTHER PARAMETERS --------
+    LS, RS = P(11), P(12)
+    LH, RH = P(23), P(24)
+    LW, RW = P(15), P(16)
     
-    LS = P(mp_pose.PoseLandmark.LEFT_SHOULDER)
-    RS = P(mp_pose.PoseLandmark.RIGHT_SHOULDER)
-    LH = P(mp_pose.PoseLandmark.LEFT_HIP)
-    RH = P(mp_pose.PoseLandmark.RIGHT_HIP)
+    # Pinned Arms check
+    shoulder_width = abs(LS[0] - RS[0]) + 1e-6
+    arms_pinned = (np.linalg.norm(LW - LH) / shoulder_width < 0.75 and 
+                   np.linalg.norm(RW - RH) / shoulder_width < 0.75)
+    
+    # Posture checks
+    shoulders_level = abs(LS[1] - RS[1]) < 0.07
+    head_steady = abs(lm[0].y - (LS[1] + RS[1])/2) < 0.15
 
-    shoulder_width = abs(LS[0] - RS[0])
+    # ====================================================
+    #           REDISTRIBUTED WEIGHTED SCORING
+    # ====================================================
+    # Total 100
+    score = 0
+    if is_swapped: score += 55       # Increased from 30
+    if arms_pinned: score += 20      # Increased from 10
+    if shoulders_level: score += 15  # Increased from 10
+    if head_steady: score += 10
+    
+    # Logic results for UI
+    checks = {
+        "180 Rotation (Swap)": is_swapped,
+        "Arms Pinned": arms_pinned,
+        "Shoulders Level": shoulders_level,
+        "Head Steady": head_steady
+    }
 
-    nose_visibility = lm[mp_pose.PoseLandmark.NOSE].visibility
+    suggestions = []
+    if not is_swapped:
+        suggestions.append("Turn fully until shoulders are swapped from camera view.")
+    if not arms_pinned:
+        suggestions.append("Keep your hands locked at your sides.")
+    if not shoulders_level:
+        suggestions.append("Don't tilt your shoulders during the turn.")
 
-    mid_shoulder = (LS + RS) / 2
-    mid_hip = (LH + RH) / 2
-    vertical_ref = mid_shoulder + np.array([0, 1])
-    spine_angle = angle(vertical_ref, mid_shoulder, mid_hip)
-
-    details = {}
-
-    details["Facing away (180°)"] = nose_visibility < 0.3
-    details["Shoulders aligned (back view)"] = shoulder_width < 0.12
-    details["Body vertical"] = spine_angle < ANGLE_TOL
-
-    score = sum(details.values())
-    total = len(details)
-
-    suggestions = [k for k, v in details.items() if not v]
-
-    return image, (score / total) * 100, details, suggestions, {}
+    return image, score, checks, suggestions, {"ls_x": ls_x, "rs_x": rs_x}

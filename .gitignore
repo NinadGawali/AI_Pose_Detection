@@ -210,3 +210,4 @@ __marimo__/
 sample_images/
 dataset/
 combined_sample.py
+*.xlsx
