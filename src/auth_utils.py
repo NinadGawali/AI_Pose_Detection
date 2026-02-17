@@ -18,7 +18,7 @@ def initialize_session():
     if 'role' not in st.session_state:
         st.session_state.role = None
     if 'page' not in st.session_state:
-        st.session_state.page = 'login'
+        st.session_state.page = 'landing'
 
 
 def login(username, password, role):
